@@ -19,6 +19,7 @@ VibeScout is a personal/portfolio project. It is **not** a penetration-testing t
   - **D** Cookie attributes of cookies actually set in the observed response (Secure/HttpOnly/SameSite — never values)
   - **E** Explicit `http://` subresource references on an HTTPS page (observed mixed-content, flagged for verification)
   - **F** Visible diagnostic disclosures (e.g. stack traces) in the plain response
+- **Re-checks the queue** on demand ("Sprawdź kolejkę"): projects left in the queue (daily limit reached, run stopped) can be checked later without re-reading any source.
 - **Reports** per app (Polish) + a run summary, exportable to **Markdown / safe HTML / JSON**, with in-app persistent notifications.
 
 ### Out of scope (never performed in v1)
@@ -65,6 +66,7 @@ VIBESCOUT_DEMO=1 npm start   # isolated demo mode: synthetic data, network check
 
 ## Documentation
 
+- [`CHANGELOG.md`](./CHANGELOG.md) — what changed in each version
 - [`QUICKSTART_PL.md`](./QUICKSTART_PL.md) — install / run / stop / update / troubleshooting (Polish)
 - [`SPEC.md`](./SPEC.md) — product scope
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how it works

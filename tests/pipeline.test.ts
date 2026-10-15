@@ -71,6 +71,44 @@ describe("pipeline: sterowanie przebiegiem", () => {
     expect(checked.total).toBeGreaterThanOrEqual(1);
   });
 
+  it("Sprawdź kolejkę: przy pustej kolejce odmawia startu", () => {
+    db = new Db(":memory:");
+    const p = new Pipeline(db, testConfig(), makeDemoDeps());
+    const r = p.start({ ...params, sources: [], queueOnly: true });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/pusta/);
+  });
+
+  it("Sprawdź kolejkę: sprawdza zaległe projekty bez czytania źródeł", async () => {
+    db = new Db(":memory:");
+    const p = new Pipeline(db, testConfig(), makeDemoDeps());
+    // Pierwszy przebieg z limitem 1 kontroli — reszta zostaje w kolejce.
+    p.start({ ...params, maxAppsPerDay: 1 });
+    await waitUntilIdle(p);
+    const left = db.queuedCount();
+    expect(left).toBeGreaterThan(0);
+
+    const r = p.start({ ...params, sources: [], queueOnly: true });
+    expect(r.ok).toBe(true);
+    await waitUntilIdle(p);
+    const last = db.listRuns(1)[0]!;
+    expect(last.params.queueOnly).toBe(true);
+    expect(last.counters.found).toBe(0);
+    expect(last.counters.sourceReads).toBe(0);
+    expect(last.counters.checked + last.counters.rejected + last.counters.errors).toBeGreaterThan(0);
+    expect(db.queuedCount()).toBeLessThan(left);
+  });
+
+  it("Sprawdź kolejkę: odmawia, gdy dobowy limit wyczerpany", async () => {
+    db = new Db(":memory:");
+    const p = new Pipeline(db, testConfig(), makeDemoDeps());
+    p.start({ ...params, maxAppsPerDay: 1 });
+    await waitUntilIdle(p);
+    const r = p.start({ ...params, sources: [], queueOnly: true, maxAppsPerDay: 1 });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/limit/);
+  });
+
   it("recheck zwraca błąd dla nieistniejącego projektu", async () => {
     db = new Db(":memory:");
     const p = new Pipeline(db, testConfig(), makeDemoDeps());

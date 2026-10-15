@@ -46,9 +46,15 @@ export function createRouter(db: Db, pipeline: Pipeline, cfg: Config): Router {
   // --- sterowanie przebiegiem ---
   r.post("/run/start", (req, res) => {
     const body = req.body ?? {};
-    const sources: string[] = Array.isArray(body.sources) && body.sources.length ? body.sources : ["hackernews"];
+    const queueOnly = body.queueOnly === true;
+    const sources: string[] = queueOnly
+      ? []
+      : Array.isArray(body.sources) && body.sources.length
+        ? body.sources
+        : ["hackernews"];
     const params: RunParams = {
       sources,
+      queueOnly,
       lookbackDays: clampInt(body.lookbackDays, cfg.defaults.lookbackDays, 1, 365),
       maxAppsPerDay: clampInt(body.maxAppsPerDay, cfg.defaults.maxAppsPerDay, 1, 500),
       sourceReadBudget: clampInt(body.sourceReadBudget, cfg.defaults.sourceReadBudget, 1, 5000),
