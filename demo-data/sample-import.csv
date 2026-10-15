@@ -1,0 +1,4 @@
+appUrl,name,announcementUrl,rawText
+https://habits.example,Habitly,https://news.ycombinator.com/item?id=0,"I built this with Claude Code"
+https://notes.example,Notesy,https://news.ycombinator.com/item?id=4,"Zbudowane przy pomocy Cursora"
+https://chat.example,ChatBuddy,https://news.ycombinator.com/item?id=2,"Chat with Gemini"

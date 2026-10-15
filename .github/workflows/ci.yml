@@ -1,0 +1,38 @@
+name: CI
+
+# Uruchamia typy, testy i build na danych LOKALNYCH.
+# CI NIE skanuje prawdziwych stron — testy używają wstrzykiwanego transportu i fixture.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20.x", "22.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install (npm ci)
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test (offline)
+        run: npm test
+
+      - name: Build
+        run: npm run build

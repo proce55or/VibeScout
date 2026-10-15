@@ -1,0 +1,12 @@
+[
+  {
+    "appUrl": "https://habits.example",
+    "name": "Habitly",
+    "rawText": "I built this with Claude Code"
+  },
+  {
+    "appUrl": "https://notes.example",
+    "name": "Notesy",
+    "rawText": "Zbudowane przy pomocy Cursora"
+  }
+]
