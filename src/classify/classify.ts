@@ -101,7 +101,14 @@ function firstMatch(text: string, res: RegExp[]): { term: string; index: number 
   return best;
 }
 
-export function classify(rawText: string): Classification {
+export interface ClassifyOptions {
+  /** Źródło niskiej wiarygodności (np. same tagi repo GitHub). Wtedy sam token
+   * „vibe coded" NIE jest traktowany jako deklaracja autora — tylko wyraźne
+   * zdanie typu „built with X" liczy się jako declared_ai. */
+  weakSource?: boolean;
+}
+
+export function classify(rawText: string, opts?: ClassifyOptions): Classification {
   const text = rawText || "";
   const language = detectLanguage(text);
   const matchedTerms: string[] = [];
@@ -115,7 +122,10 @@ export function classify(rawText: string): Classification {
     }
   }
 
-  const built = firstMatch(text, BUILT_WITH);
+  // Przy słabym źródle (tagi) pomijamy samodzielne wzorce „vibe cod*" —
+  // deklaracją autora pozostaje tylko wyraźne zdanie „built with X".
+  const builtPatterns = opts?.weakSource ? BUILT_WITH.slice(0, 4) : BUILT_WITH;
+  const built = firstMatch(text, builtPatterns);
   const uses = firstMatch(text, USES_AI);
   const negation = firstMatch(text, NEGATION);
 

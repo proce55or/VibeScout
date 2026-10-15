@@ -45,4 +45,14 @@ describe("klasyfikacja ogłoszeń", () => {
     expect(c.origin).toBe("declared_ai");
     expect(c.confidence).toBe("medium");
   });
+
+  it("słabe źródło (same tagi) z tokenem vibe-coding → NIE declared_ai", () => {
+    const c = classify("tagi: gemini, llm, ollama, openai, php, vibe-coding", { weakSource: true });
+    expect(c.origin).not.toBe("declared_ai");
+  });
+
+  it("słabe źródło, ale wyraźne zdanie Built-using-Gemini → declared_ai zostaje", () => {
+    const c = classify("Monster Hunter inspired boss battler. Built & vibe-coded using Gemini Flash 3.8.", { weakSource: true });
+    expect(c.origin).toBe("declared_ai");
+  });
 });

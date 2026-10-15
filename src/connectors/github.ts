@@ -104,7 +104,15 @@ export const githubConnector: Connector = {
           }
         }
 
-        const rawText = [repo.full_name, repo.description ?? "", (repo.topics ?? []).join(" ")].join(" ").trim();
+        // Klasyfikujemy po OPISIE (zdaniu autora), nie po tagach repo. Same tagi
+        // (np. „vibe-coding", „gemini") to słaby sygnał — nie „deklaracja autora".
+        // Tagi dołączamy osobno jako kontekst, oddzielone znakiem, by nie tworzyły
+        // fałszywej „deklaracji" (klasyfikator rozpoznaje deklaracje w zdaniach).
+        const desc = (repo.description ?? "").trim();
+        const topics = (repo.topics ?? []).join(", ");
+        const rawText = desc || (topics ? `tagi: ${topics}` : repo.full_name ?? "");
+        // Brak opisu = klasyfikujemy po samych tagach → słabe źródło (ostrożniej).
+        const weakSource = desc === "";
         items.push({
           name: (repo.full_name?.split("/")[1] ?? repo.full_name ?? "repo").slice(0, 120),
           appUrl,
@@ -113,6 +121,7 @@ export const githubConnector: Connector = {
           publishedAt: repo.pushed_at ?? null,
           rawText,
           externalId: fullName,
+          weakSource,
         });
       }
     }

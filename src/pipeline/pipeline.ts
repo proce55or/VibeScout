@@ -5,7 +5,7 @@ import type { DnsLookup } from "../net/ssrf.js";
 import { RateLimiter } from "../net/ratelimit.js";
 import { runWebChecks } from "../checks/run-checks.js";
 import { CONNECTORS, getConnector } from "../connectors/registry.js";
-import { qualify } from "../classify/qualify.js";
+import { qualify, isNonAppHost } from "../classify/qualify.js";
 import type { ConnectorContext } from "../connectors/types.js";
 import type { RunParams, RunState, RunCounters, Project } from "../types.js";
 
@@ -348,7 +348,13 @@ export class Pipeline {
   async recheck(projectId: string): Promise<{ ok: boolean; error?: string }> {
     const project = this.db.getProject(projectId);
     if (!project) return { ok: false, error: "Nie znaleziono projektu." };
-    if (!project.appUrl) return { ok: false, error: "Projekt nie ma adresu aplikacji." };
+    if (!project.appUrl) return { ok: false, error: "Projekt nie ma adresu działającej aplikacji." };
+    if (isNonAppHost(project.host)) {
+      return {
+        ok: false,
+        error: `Adres to repozytorium/profil (${project.host}), nie działająca aplikacja — kontrola sprawdziłaby sam ${project.host}, nie projekt autora.`,
+      };
+    }
     if (this.db.isExcluded(project.host)) return { ok: false, error: "Host jest na liście wykluczeń." };
     const checkDeps = { transport: this.rateLimitedTransport(), lookup: this.deps.lookup, now: this.now };
     const result = await runWebChecks(project.appUrl, checkDeps, { now: this.now });

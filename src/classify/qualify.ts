@@ -41,7 +41,8 @@ const NON_APP_HOSTS = new Set([
   "www.producthunt.com",
 ]);
 
-function isNonAppHost(host: string): boolean {
+export function isNonAppHost(host: string | null): boolean {
+  if (!host) return false;
   if (NON_APP_HOSTS.has(host)) return true;
   // Dokumentacja.
   if (/^docs\./.test(host)) return true;
@@ -49,7 +50,7 @@ function isNonAppHost(host: string): boolean {
 }
 
 export function qualify(input: ProjectInput): Qualification {
-  const classification = classify(input.rawText);
+  const classification = classify(input.rawText, { weakSource: input.weakSource });
 
   if (!input.appUrl) {
     return {

@@ -41,6 +41,8 @@ export interface ProjectInput {
   publishedAt: string | null; // ISO 8601
   rawText: string; // treść ogłoszenia/deklaracji (niezaufana)
   externalId?: string | null; // identyfikator w źródle (np. HN item id)
+  /** Źródło niskiej wiarygodności (np. same tagi repo) — ostrożniejsza klasyfikacja. */
+  weakSource?: boolean;
 }
 
 export interface Project {

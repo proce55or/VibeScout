@@ -3,6 +3,7 @@ import type { Db } from "../db/db.js";
 import type { Pipeline } from "../pipeline/pipeline.js";
 import type { Config } from "../config.js";
 import { Pipeline as PipelineClass } from "../pipeline/pipeline.js";
+import { APP_VERSION } from "../config.js";
 import { SESSION_TOKEN } from "./security.js";
 import { qualify } from "../classify/qualify.js";
 import { importRecords } from "../connectors/import.js";
@@ -15,7 +16,7 @@ export function createRouter(db: Db, pipeline: Pipeline, cfg: Config): Router {
   const r = Router();
 
   r.get("/session", (_req: Request, res: Response) => {
-    res.json({ token: SESSION_TOKEN, demo: cfg.demo, version: "1.0.0" });
+    res.json({ token: SESSION_TOKEN, demo: cfg.demo, version: APP_VERSION });
   });
 
   r.get("/status", (_req, res) => {

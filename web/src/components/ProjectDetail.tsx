@@ -28,6 +28,14 @@ export function ProjectDetail({ projectId, onClose, onChanged }: { projectId: st
   const { project, checks } = data;
   const latest = checks[0];
 
+  // Czy można uruchomić kontrolę A–F (potrzebny adres DZIAŁAJĄCEJ aplikacji).
+  const NON_APP = /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|news\.ycombinator\.com|reddit\.com|x\.com|twitter\.com|youtube\.com|youtu\.be|linkedin\.com|npmjs\.com|producthunt\.com)$/i;
+  const checkBlock: string | null = !project.appUrl
+    ? "Brak adresu działającej aplikacji — dodaj go ręcznie w zakładce Źródła i dane, jeśli go znasz (np. z README)."
+    : project.host && NON_APP.test(project.host)
+      ? `Adres to repozytorium/profil (${project.host}), nie działająca aplikacja — kontrola sprawdziłaby sam ${project.host}, nie projekt autora.`
+      : null;
+
   const recheck = async () => {
     setBusy(true);
     setMsg(null);
@@ -107,7 +115,7 @@ export function ProjectDetail({ projectId, onClose, onChanged }: { projectId: st
         )}
 
         <div className="row" style={{ marginTop: 14, gap: 8 }}>
-          <button className="btn" disabled={busy || !project.appUrl} onClick={recheck}>
+          <button className="btn" disabled={busy || checkBlock !== null} onClick={recheck} title={checkBlock ?? ""}>
             Ponów kontrolę
           </button>
           <a className="btn ghost" href={reportUrl(projectId, "html")} target="_blank" rel="noopener noreferrer">
@@ -129,6 +137,7 @@ export function ProjectDetail({ projectId, onClose, onChanged }: { projectId: st
           </button>
         </div>
         {msg && <div className="notice" style={{ marginTop: 8 }}>{msg}</div>}
+        {checkBlock && <div className="notice warn" style={{ marginTop: 8 }}>{checkBlock}</div>}
 
         <h3>Historia kontroli ({checks.length})</h3>
         {!latest && <div className="muted small">Brak wykonanych kontroli.</div>}

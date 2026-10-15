@@ -8,6 +8,9 @@ import fs from "node:fs";
  * nadpisać per-przebieg w panelu — tu są wartości startowe.
  */
 
+/** Wersja aplikacji — pokazywana przy logo w panelu. Jedno źródło prawdy. */
+export const APP_VERSION = "1.3.0";
+
 function envInt(name: string, def: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === "") return def;
