@@ -22,6 +22,7 @@ export interface Project {
   status: string;
   rejectReason: string | null;
   classification: Classification;
+  lastSummary?: string | null;
   mergedFrom: Array<{ source: string; announcementUrl: string | null; externalId: string | null }>;
 }
 

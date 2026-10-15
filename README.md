@@ -2,7 +2,7 @@
 
 > A small, local research tool that discovers **publicly announced** AI-built web apps and runs a tightly‑scoped set of **passive, public** web checks, producing a **private** report for the operator.
 
-VibeScout is a personal/portfolio project. It is **not** a penetration-testing tool and makes **no** security guarantees. It reads a limited set of public sources (e.g. Hacker News "Show HN", configurable RSS/Atom feeds, manual entries, CSV/JSON import), classifies whether the **author declared** building the app with AI, and performs a small, explicitly defined set of public HTTP checks (A–F) on the apps that qualify.
+VibeScout is a personal/portfolio project. It is **not** a penetration-testing tool and makes **no** security guarantees. It reads a limited set of public sources (Hacker News "Show HN", GitHub repository search, configurable RSS/Atom feeds, manual entries, CSV/JSON import), classifies whether the **author declared** building the app with AI, and performs a small, explicitly defined set of public HTTP checks (A–F) on the apps that qualify.
 
 🇵🇱 **Instrukcja po polsku (instalacja, uruchomienie, FAQ): [`QUICKSTART_PL.md`](./QUICKSTART_PL.md).**
 
@@ -41,7 +41,8 @@ TypeScript · Node.js (Express) · SQLite (better-sqlite3) · React + Vite. No D
 ## Status & honesty notes
 
 - The **Hacker News** connector uses the official API (`/v0/showstories.json`): up to ~200 most recent Show HN posts — **not** a full monthly archive.
-- GitHub / Reddit / Facebook connectors are **not implemented** in v1 and are shown with an explicit "not implemented" status (Facebook/closed groups are handled via manual entry only).
+- The **GitHub** connector uses the public repository Search API (no token required; optional token only raises rate limits). The working app URL is taken from the repo's `homepage` field; a repo without one is recorded as a source but never treated as a running app. For repos with a homepage, the README is also read (bounded) to find author declarations missing from the short description. Repository tags alone are treated as weak evidence.
+- Reddit and Facebook connectors are **not implemented** and are shown with an explicit "not implemented" status (Facebook/closed groups are handled via manual entry only).
 - Running the code on GitHub is **not** a running server; the backend runs on your machine while it is on and awake.
 
 ## Quick start (summary)

@@ -115,12 +115,13 @@ export function ProjectsView({ status }: { status: StatusResponse }) {
             <th>Pewność</th>
             <th>Narzędzie</th>
             <th>Status</th>
+            <th>Wynik kontroli</th>
           </tr>
         </thead>
         <tbody>
           {projects.length === 0 && (
             <tr>
-              <td colSpan={6} className="muted" style={{ padding: 24, textAlign: "center" }}>
+              <td colSpan={7} className="muted" style={{ padding: 24, textAlign: "center" }}>
                 Brak projektów. Uruchom przebieg lub dodaj ręcznie w zakładce „Źródła i dane".
               </td>
             </tr>
@@ -140,6 +141,13 @@ export function ProjectsView({ status }: { status: StatusResponse }) {
               </td>
               <td>{p.classification.tool ?? "—"}</td>
               <td>{STATUS_LABELS[p.status] ?? p.status}</td>
+              <td>
+                {p.lastSummary ? (
+                  <span className={`tag sum-${p.lastSummary}`}>{SUMMARY_LABELS[p.lastSummary] ?? p.lastSummary}</span>
+                ) : (
+                  <span className="muted">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

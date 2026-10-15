@@ -1,4 +1,5 @@
 import { fetchSource, parseJson } from "./source-fetch.js";
+import { classify } from "../classify/classify.js";
 import type { Connector, CollectParams, CollectResult, ConnectorContext } from "./types.js";
 import type { ProjectInput } from "../types.js";
 
@@ -32,6 +33,23 @@ const QUERIES = [
   '"vibe coded" in:readme,description',
   '"built with" ("claude code" OR cursor OR codex OR lovable OR bolt) in:readme,description',
 ];
+
+/** Ile README maksymalnie pobrać w jednym przebiegu (szacunek dla limitów API). */
+const README_CAP = 12;
+/** Ile znaków README analizować (deklaracje są zwykle na początku). */
+const README_CHARS = 4000;
+
+/** Usuwa najczęstszą składnię Markdown/HTML, żeby klasyfikator widział zdania. */
+export function stripMarkdown(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, " ") // bloki kodu
+    .replace(/<[^>]+>/g, " ") // tagi HTML
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ") // obrazki
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // linki → tekst
+    .replace(/[#>*_`~|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function isCodeHost(host: string): boolean {
   return /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|npmjs\.com|sourceforge\.net)$/i.test(host);
@@ -126,12 +144,46 @@ export const githubConnector: Connector = {
       }
     }
 
+    // Drugi przebieg: README. Tylko dla repo z adresem działającej aplikacji (homepage),
+    // których opis nie dał wyraźnej deklaracji — deklaracja bywa w README, nie w opisie.
+    // Ograniczona liczba zapytań, by szanować limity API i budżet odczytów.
+    let readmeFetched = 0;
+    let readmeUpgraded = 0;
+    for (const item of items) {
+      if (readmeFetched >= README_CAP || limited) break;
+      if (!item.appUrl || !item.externalId) continue;
+      if (classify(item.rawText, { weakSource: item.weakSource }).origin === "declared_ai") continue;
+      if (ctx.budget.reads >= ctx.budget.max) {
+        limited = true;
+        break;
+      }
+      const res = await fetchSource(`https://api.github.com/repos/${item.externalId}/readme`, ctx, {
+        ...headers,
+        accept: "application/vnd.github.raw+json",
+      });
+      reads += 1;
+      ctx.budget.reads += 1;
+      readmeFetched += 1;
+      if (res.status === 403 || res.status === 429) {
+        errors.push("limit API GitHub przy README — pominięto resztę.");
+        limited = true;
+        break;
+      }
+      if (!res.ok || res.status !== 200 || !res.body) continue;
+      const readme = stripMarkdown(res.body).slice(0, README_CHARS);
+      if (classify(readme).origin === "declared_ai") {
+        item.rawText = readme;
+        item.weakSource = false;
+        readmeUpgraded += 1;
+      }
+    }
+
     return {
       items,
       reads,
       limited,
       error: errors.length ? errors.join("; ") : null,
-      note: `GitHub: ${items.length} repo (z homepage jako adresem aplikacji tam, gdzie dostępne).${ctx.githubToken ? "" : " Bez tokenu — niższe limity API."}`,
+      note: `GitHub: ${items.length} repo; README sprawdzono dla ${readmeFetched}, deklarację AI znaleziono w README u ${readmeUpgraded}.${ctx.githubToken ? "" : " Bez tokenu — niższe limity API."}`,
     };
   },
 };

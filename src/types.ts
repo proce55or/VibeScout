@@ -59,6 +59,8 @@ export interface Project {
   status: ProjectStatus;
   rejectReason: string | null;
   classification: Classification;
+  /** Podsumowanie ostatniej kontroli (needs_review / no_issues_observed / incomplete). */
+  lastSummary?: string | null;
   /** Dodatkowe ogłoszenia tej samej aplikacji (pochodzenie danych zachowane). */
   mergedFrom: Array<{ source: string; announcementUrl: string | null; externalId: string | null }>;
 }

@@ -21,7 +21,7 @@ Pełny przebieg: **Start → pobranie ogłoszeń → identyfikacja projektów �
 | RSS/Atom | wdrożony | Tylko kanały skonfigurowane przez użytkownika (nazwa, status, limit). Brak domyślnych kanałów. |
 | Ręczne dodanie | wdrożony | Adres aplikacji + link do ogłoszenia + opcjonalny fragment deklaracji. |
 | Import CSV/JSON | wdrożony | Z walidacją i podglądem przed dodaniem. |
-| GitHub | niewdrożony | Struktura przewidziana; jawny status. |
+| GitHub | wdrożony | Publiczne API wyszukiwania repo (bez tokenu; token opcjonalny). Adres aplikacji z pola `homepage`; README czytane w ograniczonym zakresie; same tagi = słaby dowód. |
 | Reddit | niewdrożony | Tylko dozwoloną metodą i z autoryzacją, po sprawdzeniu zasad. |
 | Facebook / grupy zamknięte | przez dane ręczne | Bez prywatnych sesji, bez obchodzenia logowania/CAPTCHA. |
 

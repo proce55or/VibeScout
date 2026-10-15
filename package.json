@@ -1,6 +1,6 @@
 {
   "name": "vibescout",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Local tool that discovers publicly announced AI-built web apps and runs a small, explicit set of passive public web checks, producing a private report.",
   "license": "MIT",
