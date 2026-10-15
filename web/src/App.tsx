@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api, initSession } from "./api";
 import type { StatusResponse } from "./types";
 import { ControlPanel } from "./components/ControlPanel";
+import { ActivityLog } from "./components/ActivityLog";
 import { ProjectsView } from "./components/ProjectsView";
 import { SourcesView } from "./components/SourcesView";
 import { NotificationsView } from "./components/NotificationsView";
@@ -32,7 +33,7 @@ export function App() {
 
   useEffect(() => {
     refreshStatus();
-    const t = setInterval(refreshStatus, 2500);
+    const t = setInterval(refreshStatus, 1500);
     return () => clearInterval(t);
   }, [refreshStatus]);
 
@@ -66,6 +67,7 @@ export function App() {
       {tab === "panel" && status && (
         <>
           <ControlPanel status={status} onChange={refreshStatus} />
+          <ActivityLog active={Boolean(status.run)} />
           <ProjectsView status={status} />
         </>
       )}

@@ -11,10 +11,10 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-if [ "$NODE_MAJOR" -lt 20 ]; then
-  echo "Wykryto Node.js $(node -v). Wymagana wersja 20 lub nowsza (zalecana 22 LTS)."
-  echo "Naciśnij Enter, aby zamknąć."
+# Narzędzia do budowania wymagają Node ≥ 20.19 lub ≥ 22.12 (zalecana 22 LTS).
+if ! node -e 'const v=process.versions.node.split(".").map(Number);const ok=(v[0]>22)||(v[0]===22&&v[1]>=12)||(v[0]===21)||(v[0]===20&&v[1]>=19);process.exit(ok?0:1)'; then
+  echo "Wykryto Node.js $(node -v). Wymagana wersja Node ≥ 20.19 lub ≥ 22.12 (zalecana 22 LTS z https://nodejs.org)."
+  echo "Zaktualizuj Node i spróbuj ponownie. Naciśnij Enter, aby zamknąć."
   read -r _
   exit 1
 fi

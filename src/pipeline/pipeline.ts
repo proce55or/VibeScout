@@ -24,12 +24,36 @@ export interface PipelineDeps {
   now?: () => number;
 }
 
+export interface PipelineEvent {
+  seq: number;
+  ts: string;
+  level: "info" | "ok" | "warn" | "error";
+  msg: string;
+}
+
 export class Pipeline {
   private paused = false;
   private stopRequested = false;
   private activeRunId: string | null = null;
   private loop: Promise<void> | null = null;
   private readonly now: () => number;
+
+  /** Dziennik zdarzeń na żywo (w pamięci; do podglądu w panelu). */
+  private events: PipelineEvent[] = [];
+  private seq = 0;
+  private readonly maxEvents = 400;
+
+  private log(level: PipelineEvent["level"], msg: string): void {
+    this.seq += 1;
+    this.events.push({ seq: this.seq, ts: new Date(this.now()).toISOString(), level, msg });
+    if (this.events.length > this.maxEvents) this.events.splice(0, this.events.length - this.maxEvents);
+  }
+
+  /** Zwraca zdarzenia nowsze niż `since` (dla podglądu na żywo). */
+  getEvents(since = 0): { events: PipelineEvent[]; lastSeq: number } {
+    const events = this.events.filter((e) => e.seq > since);
+    return { events, lastSeq: this.seq };
+  }
 
   /** Limiter kontroli: globalnie max 2 równolegle, 1 żądanie / 5 s na host. */
   private readonly checkLimiter: RateLimiter;
@@ -102,6 +126,7 @@ export class Pipeline {
     if (this.activeRunId) {
       this.paused = true;
       this.db.updateRun(this.activeRunId, { status: "paused" });
+      this.log("warn", "⏸ Pauza — kończę bieżące zadanie i wstrzymuję kolejne.");
     }
   }
 
@@ -109,6 +134,7 @@ export class Pipeline {
     if (this.activeRunId && this.paused) {
       this.paused = false;
       this.db.updateRun(this.activeRunId, { status: "running" });
+      this.log("info", "⏵ Wznowiono.");
     }
   }
 
@@ -117,6 +143,7 @@ export class Pipeline {
       this.stopRequested = true;
       this.paused = false;
       this.db.updateRun(this.activeRunId, { status: "stopping" });
+      this.log("warn", "⏹ Zatrzymywanie — dokończę bieżące zadanie i zapiszę wyniki.");
     }
   }
 
@@ -128,6 +155,7 @@ export class Pipeline {
 
   private async execute(runId: string, params: RunParams): Promise<void> {
     const counters: RunCounters = this.db.getRun(runId)!.counters;
+    this.log("info", `▶ Start przebiegu. Źródła: ${params.sources.join(", ")}; zakres ${params.lookbackDays} dni; limit ${params.maxAppsPerDay}/dobę.`);
 
     // --- Faza 1: pobranie ogłoszeń i kwalifikacja ---
     const budget = { reads: 0, max: params.sourceReadBudget };
@@ -149,10 +177,12 @@ export class Pipeline {
       await this.waitWhilePaused();
       const connector = getConnector(sourceId);
       if (!connector || !connector.implemented) continue;
+      this.log("info", `Źródło „${connector.name}": pobieram ogłoszenia…`);
       let result;
       try {
         result = await connector.collect({ lookbackDays: params.lookbackDays, limit: 100, feeds }, ctx);
       } catch (err) {
+        this.log("error", `Źródło „${connector.name}": błąd — ${String(err instanceof Error ? err.message : err)}`);
         this.db.addNotification({
           level: "attention",
           title: `Błąd konektora: ${connector.name}`,
@@ -164,6 +194,7 @@ export class Pipeline {
       }
       counters.sourceReads = budget.reads;
       if (result.error) {
+        this.log("error", `Źródło „${connector.name}": ${result.error}`);
         this.db.addNotification({
           level: "attention",
           title: `Konektor ${connector.name}: problem`,
@@ -172,6 +203,8 @@ export class Pipeline {
           runId,
         });
       }
+      this.log("ok", `Źródło „${connector.name}": zebrano ${result.items.length} kandydatów (${result.note}).`);
+      let processed = 0;
       for (const item of result.items) {
         counters.found += 1;
         // Wykluczenia domen.
@@ -196,13 +229,22 @@ export class Pipeline {
           if (!minDate || item.publishedAt < minDate) minDate = item.publishedAt;
           if (!maxDate || item.publishedAt > maxDate) maxDate = item.publishedAt;
         }
+        // Liczniki na bieżąco (co kilka pozycji), żeby panel pokazywał postęp.
+        processed += 1;
+        if (processed % 5 === 0) this.db.updateRun(runId, { counters, dateRange: { from: minDate, to: maxDate } });
       }
       this.db.updateRun(runId, { counters, dateRange: { from: minDate, to: maxDate } });
+      this.log(
+        "info",
+        `Po kwalifikacji: do kontroli ${counters.queued}, do przeglądu ${counters.needsReview}, odrzucone ${counters.rejected}.`,
+      );
     }
 
     // --- Faza 2: kontrole WWW (limit dobowy + współbieżność) ---
     const alreadyToday = this.db.checkedInLast24h();
     let dailyRemaining = Math.max(0, params.maxAppsPerDay - alreadyToday);
+    const toCheck = this.db.queuedCount();
+    this.log("info", `Kontrole WWW: w kolejce ${toCheck}, dziś dostępny limit ${dailyRemaining}.`);
     const checkTransport = this.rateLimitedTransport();
     const checkDeps = { transport: checkTransport, lookup: this.deps.lookup, now: this.now };
 
@@ -239,6 +281,11 @@ export class Pipeline {
       note: limitedNote,
     });
 
+    this.log(
+      this.stopRequested ? "warn" : "ok",
+      `■ ${this.stopRequested ? "Przebieg zatrzymany" : "Przebieg zakończony"}: znalezione ${counters.found}, sprawdzone ${counters.checked}, do przeglądu ${counters.needsReview}, odrzucone ${counters.rejected}, błędy ${counters.errors}.${limitedNote ? " " + limitedNote : ""}`,
+    );
+
     // Retencja.
     this.db.purgeOlderThan(this.cfg.retentionDays);
 
@@ -269,12 +316,16 @@ export class Pipeline {
       counters.rejected += 1;
       return;
     }
+    this.log("info", `Sprawdzam: ${project.name} (${project.host ?? project.appUrl})…`);
     try {
       const result = await runWebChecks(project.appUrl, checkDeps, { now: this.now });
       result.projectId = project.id;
       this.db.saveCheckRun(result);
       counters.checked += 1;
       counters.checkedToday += 1;
+      const summaryLabel =
+        result.summary === "needs_review" ? "wymaga przeglądu" : result.summary === "incomplete" ? "wynik niepełny" : "bez uwag";
+      this.log(result.summary === "needs_review" ? "warn" : "ok", `${result.summary === "needs_review" ? "⚠" : "✓"} ${project.name}: ${summaryLabel}.`);
       if (result.summary === "needs_review") {
         counters.needsReview += 1;
         this.db.addNotification({
@@ -287,6 +338,7 @@ export class Pipeline {
       }
     } catch (err) {
       counters.errors += 1;
+      this.log("error", `✕ ${project.name}: błąd — ${String(err instanceof Error ? err.message : err)}`);
       this.db.updateProjectStatus(project.id, "error", String(err instanceof Error ? err.message : err));
     }
   }

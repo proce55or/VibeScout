@@ -2,14 +2,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
-// Frontend lives in web/. The dev server proxies /api to the local backend so
-// that foreign pages are never fetched from the browser (no CORS proxy, no
-// front-end fetching of third-party sites — the backend does all of that).
+// Frontend w web/. Serwer dev proxuje /api do lokalnego backendu, dzięki czemu
+// strony obce nigdy nie są pobierane z przeglądarki (brak proxy CORS).
 export default defineConfig({
-  root: path.resolve(__dirname, "web"),
+  root: path.resolve(import.meta.dirname, "web"),
   base: "./",
   build: {
-    outDir: path.resolve(__dirname, "web/dist"),
+    outDir: path.resolve(import.meta.dirname, "web/dist"),
     emptyOutDir: true,
   },
   plugins: [react()],

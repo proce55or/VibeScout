@@ -95,10 +95,14 @@ let cached: Config | null = null;
 export function loadConfig(): Config {
   if (cached) return cached;
   const dataDir = envStr("VIBESCOUT_DATA_DIR", defaultDataDir());
+  const demo = envBool("VIBESCOUT_DEMO", false);
+  // W trybie demo (offline, dane syntetyczne) skracamy odstęp per host, by podgląd
+  // na żywo był responsywny. W trybie normalnym obowiązują pełne, „grzeczne" limity.
+  const limits: HardLimits = demo ? { ...HARD_LIMITS, minHostIntervalMs: 250 } : HARD_LIMITS;
   const cfg: Config = {
     host: envStr("VIBESCOUT_HOST", "127.0.0.1"),
     port: envInt("VIBESCOUT_PORT", 4317),
-    demo: envBool("VIBESCOUT_DEMO", false),
+    demo,
     dataDir,
     dbPath: path.join(dataDir, "vibescout.sqlite"),
     retentionDays: envInt("VIBESCOUT_RETENTION_DAYS", 30),
@@ -107,7 +111,7 @@ export function loadConfig(): Config {
       lookbackDays: envInt("VIBESCOUT_LOOKBACK_DAYS", 30),
       sourceReadBudget: envInt("VIBESCOUT_SOURCE_READ_BUDGET", 300),
     },
-    limits: HARD_LIMITS,
+    limits,
     llm: {
       enabled: envBool("VIBESCOUT_LLM_ENABLED", false),
       endpoint: envStr("VIBESCOUT_LLM_ENDPOINT", ""),

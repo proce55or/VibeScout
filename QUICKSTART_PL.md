@@ -11,12 +11,12 @@ Ta instrukcja prowadzi krok po kroku. VibeScout to **lokalny** program: działa 
 
 ## 1. Czego potrzebujesz
 
-- **macOS** (działa też na Intel Macu i starszym systemie) — oraz **Node.js w wersji 20 lub 22** (zalecana 22 LTS).
+- **macOS** (działa też na Intel Macu i starszym systemie) — oraz **Node.js ≥ 20.19 lub ≥ 22.12** (zalecana **22 LTS**).
 - Sprawdź, czy masz Node:
   ```bash
   node -v
   ```
-  Jeśli pokaże `v20.x` lub `v22.x` — jest dobrze. Jeśli polecenie nie działa lub wersja jest starsza niż 20, zainstaluj Node 22 LTS:
+  Jeśli pokaże `v22.x` (lub `v20.19`+ / `v24.x`) — jest dobrze. Jeśli polecenie nie działa albo wersja jest starsza, zainstaluj Node 22 LTS:
   - najprościej: pobierz instalator ze strony <https://nodejs.org> (wersja **LTS**), zainstaluj, zamknij i otwórz Terminal ponownie.
   - (Program nie zmienia ustawień Twojego systemu i nie aktualizuje go samodzielnie.)
 

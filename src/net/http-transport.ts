@@ -1,7 +1,6 @@
 import http from "node:http";
 import https from "node:https";
 import zlib from "node:zlib";
-import type { LookupFunction } from "node:net";
 import type { TLSSocket } from "node:tls";
 import {
   normalizeHeaders,
@@ -32,24 +31,28 @@ export function createHttpTransport(): Transport {
     const isHttps = req.protocol === "https:";
     const agentLib = isHttps ? https : http;
 
-    // Pinowanie: lookup zawsze zwraca zweryfikowany adres IP.
-    const lookup: LookupFunction = (_hostname, _opts, cb) => {
-      cb(null, req.pinnedIp, req.family);
-    };
+    if (!req.pinnedIp) {
+      return Promise.reject(new Error("Brak zweryfikowanego adresu IP (pinnedIp)."));
+    }
 
     return new Promise<TransportResponse>((resolve, reject) => {
+      // Pinowanie: łączymy się BEZPOŚREDNIO ze zweryfikowanym publicznym adresem IP
+      // (hostname = IP), więc biblioteka nie rozwiązuje nazwy ponownie (anty-rebinding).
+      // Nagłówek Host oraz SNI/weryfikacja certyfikatu pozostają prawidłową nazwą hosta
+      // (servername). Nie używamy własnej funkcji lookup — unikamy niezgodności z
+      // mechanizmem autoSelectFamily (Happy Eyeballs), który woła lookup w trybie `all`.
       const options: https.RequestOptions = {
         protocol: req.protocol,
-        host: req.hostname,
-        hostname: req.hostname,
+        host: req.pinnedIp,
+        hostname: req.pinnedIp,
         port: req.port,
         method: req.method,
         path: req.path,
-        headers: req.headers,
-        lookup,
+        headers: { ...req.headers, host: req.headers.host ?? req.hostname },
         timeout: req.timeoutMs,
         // Weryfikacja TLS WŁĄCZONA — nigdy nie wyłączamy, by pobrać treść mimo błędu.
         rejectUnauthorized: true,
+        // SNI i weryfikacja nazwy hosta wobec certyfikatu — po NAZWIE, nie po IP.
         servername: isHttps ? req.hostname : undefined,
       };
 

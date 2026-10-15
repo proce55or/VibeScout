@@ -36,6 +36,12 @@ export function createRouter(db: Db, pipeline: Pipeline, cfg: Config): Router {
     res.json(PipelineClass.availableConnectors());
   });
 
+  // Dziennik zdarzeń na żywo (podgląd postępu).
+  r.get("/events", (req, res) => {
+    const since = clampInt(req.query.since, 0, 0, Number.MAX_SAFE_INTEGER);
+    res.json(pipeline.getEvents(since));
+  });
+
   // --- sterowanie przebiegiem ---
   r.post("/run/start", (req, res) => {
     const body = req.body ?? {};
