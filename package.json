@@ -21,7 +21,7 @@
     "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.0",
+    "better-sqlite3": "~12.11.1",
     "express": "^4.21.2",
     "fast-xml-parser": "^5.11.2",
     "ipaddr.js": "^2.2.0"
