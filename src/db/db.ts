@@ -57,6 +57,19 @@ export interface ProjectFilters {
 
 export class Db {
   private readonly db: Database.Database;
+  /** Bufor przygotowanych zapytań — przygotowujemy raz, używamy wielokrotnie.
+   * Unika tworzenia tysięcy obiektów Statement (i awarii w finalizacji przy GC). */
+  private readonly stmtCache = new Map<string, Database.Statement>();
+
+  /** Zwraca buforowane (lub nowo przygotowane) zapytanie dla danego SQL. */
+  private q(sql: string): Database.Statement {
+    let s = this.stmtCache.get(sql);
+    if (!s) {
+      s = this.db.prepare(sql);
+      this.stmtCache.set(sql, s);
+    }
+    return s;
+  }
 
   constructor(dbPath: string) {
     if (dbPath !== ":memory:") {
@@ -75,10 +88,10 @@ export class Db {
 
   // --- meta ---
   setMeta(key: string, value: string): void {
-    this.db.prepare("INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, value);
+    this.q("INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, value);
   }
   getMeta(key: string): string | null {
-    const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key) as { value: string } | undefined;
+    const row = this.q("SELECT value FROM meta WHERE key=?").get(key) as { value: string } | undefined;
     return row ? row.value : null;
   }
 
@@ -120,7 +133,7 @@ export class Db {
   }
 
   getRun(id: string): RunState | null {
-    const r = this.db.prepare("SELECT * FROM runs WHERE id=?").get(id) as Record<string, unknown> | undefined;
+    const r = this.q("SELECT * FROM runs WHERE id=?").get(id) as Record<string, unknown> | undefined;
     return r ? this.rowToRun(r) : null;
   }
 
@@ -132,7 +145,7 @@ export class Db {
   }
 
   listRuns(limit = 20): RunState[] {
-    const rows = this.db.prepare("SELECT * FROM runs ORDER BY started_at DESC LIMIT ?").all(limit) as Record<string, unknown>[];
+    const rows = this.q("SELECT * FROM runs ORDER BY started_at DESC LIMIT ?").all(limit) as Record<string, unknown>[];
     return rows.map((r) => this.rowToRun(r));
   }
 
@@ -157,7 +170,7 @@ export class Db {
     qual: Qualification,
   ): { project: Project; merged: boolean } {
     if (qual.dedupKey) {
-      const existingRow = this.db.prepare("SELECT * FROM projects WHERE dedup_key=?").get(qual.dedupKey) as ProjectRow | undefined;
+      const existingRow = this.q("SELECT * FROM projects WHERE dedup_key=?").get(qual.dedupKey) as ProjectRow | undefined;
       if (existingRow) {
         const mergedFrom = JSON.parse(existingRow.merged_from_json) as Project["mergedFrom"];
         const already = mergedFrom.some(
@@ -171,7 +184,7 @@ export class Db {
             announcementUrl: input.announcementUrl,
             externalId: input.externalId ?? null,
           });
-          this.db.prepare("UPDATE projects SET merged_from_json=? WHERE id=?").run(JSON.stringify(mergedFrom), existingRow.id);
+          this.q("UPDATE projects SET merged_from_json=? WHERE id=?").run(JSON.stringify(mergedFrom), existingRow.id);
         }
         return { project: this.getProject(existingRow.id)!, merged: true };
       }
@@ -208,7 +221,7 @@ export class Db {
   }
 
   getProject(id: string): Project | null {
-    const r = this.db.prepare("SELECT * FROM projects WHERE id=?").get(id) as ProjectRow | undefined;
+    const r = this.q("SELECT * FROM projects WHERE id=?").get(id) as ProjectRow | undefined;
     return r ? this.rowToProject(r) : null;
   }
 
@@ -232,7 +245,7 @@ export class Db {
   }
 
   updateProjectStatus(id: string, status: ProjectStatus, rejectReason?: string | null): void {
-    this.db.prepare("UPDATE projects SET status=?, reject_reason=COALESCE(?, reject_reason) WHERE id=?").run(status, rejectReason ?? null, id);
+    this.q("UPDATE projects SET status=?, reject_reason=COALESCE(?, reject_reason) WHERE id=?").run(status, rejectReason ?? null, id);
   }
 
   /** Pobiera kolejne zadanie z kolejki (status queued) i oznacza jako checking. Atomowo. */
@@ -242,21 +255,21 @@ export class Db {
         .prepare("SELECT * FROM projects WHERE status='queued' ORDER BY discovered_at ASC LIMIT 1")
         .get() as ProjectRow | undefined;
       if (!row) return null;
-      this.db.prepare("UPDATE projects SET status='checking', run_id=? WHERE id=?").run(runId, row.id);
+      this.q("UPDATE projects SET status='checking', run_id=? WHERE id=?").run(runId, row.id);
       return this.rowToProject(row);
     });
     return tx();
   }
 
   countByStatus(): Record<string, number> {
-    const rows = this.db.prepare("SELECT status, COUNT(*) as c FROM projects GROUP BY status").all() as Array<{ status: string; c: number }>;
+    const rows = this.q("SELECT status, COUNT(*) as c FROM projects GROUP BY status").all() as Array<{ status: string; c: number }>;
     const out: Record<string, number> = {};
     for (const r of rows) out[r.status] = r.c;
     return out;
   }
 
   queuedCount(): number {
-    const r = this.db.prepare("SELECT COUNT(*) as c FROM projects WHERE status='queued'").get() as { c: number };
+    const r = this.q("SELECT COUNT(*) as c FROM projects WHERE status='queued'").get() as { c: number };
     return r.c;
   }
 
@@ -293,7 +306,7 @@ export class Db {
       paramsArr.push(like, like, like);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const total = (this.db.prepare(`SELECT COUNT(*) as c FROM projects ${whereSql}`).get(...paramsArr) as { c: number }).c;
+    const total = (this.q(`SELECT COUNT(*) as c FROM projects ${whereSql}`).get(...paramsArr) as { c: number }).c;
     const limit = Math.min(filters.limit ?? 100, 500);
     const offset = filters.offset ?? 0;
     const rows = this.db
@@ -303,7 +316,7 @@ export class Db {
   }
 
   deleteProject(id: string): void {
-    this.db.prepare("DELETE FROM projects WHERE id=?").run(id);
+    this.q("DELETE FROM projects WHERE id=?").run(id);
   }
 
   // --- check runs ---
@@ -360,7 +373,7 @@ export class Db {
   }
 
   listNotifications(limit = 50): AppNotification[] {
-    const rows = this.db.prepare("SELECT * FROM notifications ORDER BY created_at DESC LIMIT ?").all(limit) as Record<string, unknown>[];
+    const rows = this.q("SELECT * FROM notifications ORDER BY created_at DESC LIMIT ?").all(limit) as Record<string, unknown>[];
     return rows.map((r) => ({
       id: r.id as string,
       createdAt: r.created_at as string,
@@ -374,22 +387,22 @@ export class Db {
   }
 
   unreadNotificationCount(): number {
-    return (this.db.prepare("SELECT COUNT(*) as c FROM notifications WHERE read=0").get() as { c: number }).c;
+    return (this.q("SELECT COUNT(*) as c FROM notifications WHERE read=0").get() as { c: number }).c;
   }
 
   markNotificationsRead(ids?: string[]): void {
     if (ids && ids.length) {
-      const stmt = this.db.prepare("UPDATE notifications SET read=1 WHERE id=?");
+      const stmt = this.q("UPDATE notifications SET read=1 WHERE id=?");
       const tx = this.db.transaction((list: string[]) => list.forEach((i) => stmt.run(i)));
       tx(ids);
     } else {
-      this.db.prepare("UPDATE notifications SET read=1").run();
+      this.q("UPDATE notifications SET read=1").run();
     }
   }
 
   // --- feeds ---
   listFeeds(): Array<FeedConfig & { id: string; status: string | null; lastError: string | null }> {
-    const rows = this.db.prepare("SELECT * FROM feeds ORDER BY name").all() as Record<string, unknown>[];
+    const rows = this.q("SELECT * FROM feeds ORDER BY name").all() as Record<string, unknown>[];
     return rows.map((r) => ({
       id: r.id as string,
       name: r.name as string,
@@ -403,16 +416,16 @@ export class Db {
 
   addFeed(name: string, url: string, limit = 25): string {
     const id = newId();
-    this.db.prepare("INSERT INTO feeds(id,name,url,enabled,item_limit) VALUES(?,?,?,1,?)").run(id, name, url, limit);
+    this.q("INSERT INTO feeds(id,name,url,enabled,item_limit) VALUES(?,?,?,1,?)").run(id, name, url, limit);
     return id;
   }
 
   setFeedEnabled(id: string, enabled: boolean): void {
-    this.db.prepare("UPDATE feeds SET enabled=? WHERE id=?").run(enabled ? 1 : 0, id);
+    this.q("UPDATE feeds SET enabled=? WHERE id=?").run(enabled ? 1 : 0, id);
   }
 
   deleteFeed(id: string): void {
-    this.db.prepare("DELETE FROM feeds WHERE id=?").run(id);
+    this.q("DELETE FROM feeds WHERE id=?").run(id);
   }
 
   // --- exclusions ---
@@ -422,16 +435,16 @@ export class Db {
       .run(host.toLowerCase(), new Date().toISOString(), note ?? null);
   }
   removeExclusion(host: string): void {
-    this.db.prepare("DELETE FROM exclusions WHERE host=?").run(host.toLowerCase());
+    this.q("DELETE FROM exclusions WHERE host=?").run(host.toLowerCase());
   }
   listExclusions(): Array<{ host: string; addedAt: string; note: string | null }> {
-    const rows = this.db.prepare("SELECT * FROM exclusions ORDER BY host").all() as Record<string, unknown>[];
+    const rows = this.q("SELECT * FROM exclusions ORDER BY host").all() as Record<string, unknown>[];
     return rows.map((r) => ({ host: r.host as string, addedAt: r.added_at as string, note: (r.note as string) ?? null }));
   }
   isExcluded(host: string | null): boolean {
     if (!host) return false;
     const h = host.toLowerCase();
-    const hosts = this.db.prepare("SELECT host FROM exclusions").all() as Array<{ host: string }>;
+    const hosts = this.q("SELECT host FROM exclusions").all() as Array<{ host: string }>;
     return hosts.some((e) => h === e.host || h.endsWith(`.${e.host}`));
   }
 
@@ -448,14 +461,14 @@ export class Db {
 
   purgeOlderThan(days: number): { projects: number } {
     const cutoff = new Date(Date.now() - days * 86400 * 1000).toISOString();
-    const n = this.db.prepare("DELETE FROM projects WHERE discovered_at < ?").run(cutoff).changes;
-    this.db.prepare("DELETE FROM notifications WHERE created_at < ?").run(cutoff);
+    const n = this.q("DELETE FROM projects WHERE discovered_at < ?").run(cutoff).changes;
+    this.q("DELETE FROM notifications WHERE created_at < ?").run(cutoff);
     return { projects: n };
   }
 
   /** Ile aplikacji objęto kontrolami w ciągu ostatnich 24h (limit dobowy). */
   checkedInLast24h(): number {
     const cutoff = new Date(Date.now() - 86400 * 1000).toISOString();
-    return (this.db.prepare("SELECT COUNT(*) as c FROM check_runs WHERE started_at >= ?").get(cutoff) as { c: number }).c;
+    return (this.q("SELECT COUNT(*) as c FROM check_runs WHERE started_at >= ?").get(cutoff) as { c: number }).c;
   }
 }
