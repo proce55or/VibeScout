@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+web/dist/
+
+# local runtime data — NEVER commit working DB, real reports, logs, page copies
+data/
+*.sqlite
+*.sqlite-*
+*.db
+runtime-data/
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.pid
+
+# test / coverage
+coverage/
+.vitest/
