@@ -241,6 +241,7 @@ export class Db {
       rejectReason: r.reject_reason,
       classification: JSON.parse(r.classification_json) as Classification,
       mergedFrom: JSON.parse(r.merged_from_json) as Project["mergedFrom"],
+      lastSummary: r.last_summary,
     };
   }
 

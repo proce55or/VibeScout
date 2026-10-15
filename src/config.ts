@@ -9,7 +9,7 @@ import fs from "node:fs";
  */
 
 /** Wersja aplikacji — pokazywana przy logo w panelu. Jedno źródło prawdy. */
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.4.0";
 
 function envInt(name: string, def: number): number {
   const raw = process.env[name];

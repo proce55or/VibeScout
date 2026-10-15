@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { githubConnector } from "../src/connectors/github.js";
+import { githubConnector, stripMarkdown } from "../src/connectors/github.js";
+import { classify } from "../src/classify/classify.js";
 import type { ConnectorContext } from "../src/connectors/types.js";
 import { RateLimiter } from "../src/net/ratelimit.js";
 import { resp, type FakeResponse } from "./helpers.js";
@@ -64,5 +65,32 @@ describe("konektor GitHub", () => {
     const r = await githubConnector.collect({ lookbackDays: 365, limit: 10 }, ctxWith(transport));
     expect(r.limited).toBe(true);
     expect(r.error).toMatch(/limit/i);
+  });
+
+  it("README: deklaracja AI w README podnosi klasyfikację repo z działającym adresem", async () => {
+    const transport: Transport = async (req) => {
+      if (req.path.includes("/readme")) {
+        return resp({ status: 200, headers: { "content-type": "text/plain" }, body: "# Tasky\n\nI built this whole app with **Claude Code** in a weekend." });
+      }
+      return resp(searchResponse([{ full_name: "eve/tasky", html_url: "https://github.com/eve/tasky", description: "A simple task manager", homepage: "https://tasky.example", pushed_at: nowIso }]));
+    };
+    const r = await githubConnector.collect({ lookbackDays: 365, limit: 10 }, ctxWith(transport));
+    const item = r.items.find((i) => i.externalId === "eve/tasky")!;
+    expect(item.weakSource).toBe(false);
+    expect(classify(item.rawText).origin).toBe("declared_ai");
+  });
+
+  it("README nie jest pobierane dla repo bez działającego adresu", async () => {
+    let readmeCalls = 0;
+    const transport: Transport = async (req) => {
+      if (req.path.includes("/readme")) { readmeCalls += 1; return resp({ status: 200, body: "built with Claude Code" }); }
+      return resp(searchResponse([{ full_name: "x/y", html_url: "https://github.com/x/y", description: "a lib", homepage: null, pushed_at: nowIso }]));
+    };
+    await githubConnector.collect({ lookbackDays: 365, limit: 10 }, ctxWith(transport));
+    expect(readmeCalls).toBe(0);
+  });
+
+  it("stripMarkdown usuwa składnię, zostawia zdania", () => {
+    expect(stripMarkdown("# Tytuł\n[link](https://a.b) **pogrubione** `kod`")).toBe("Tytuł link pogrubione kod");
   });
 });
