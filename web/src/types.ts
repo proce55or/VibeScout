@@ -52,7 +52,7 @@ export interface CheckRun {
 export interface RunState {
   id: string;
   status: string;
-  params: { sources: string[]; lookbackDays: number; maxAppsPerDay: number; sourceReadBudget: number };
+  params: { sources: string[]; lookbackDays: number; maxAppsPerDay: number; sourceReadBudget: number; queueOnly?: boolean };
   startedAt: string;
   finishedAt: string | null;
   counters: Record<string, number>;

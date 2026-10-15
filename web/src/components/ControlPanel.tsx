@@ -64,6 +64,18 @@ export function ControlPanel({ status, onChange }: { status: StatusResponse; onC
         <button className="btn" disabled={busy || isActive} onClick={() => action("/run/start", { sources, lookbackDays, maxAppsPerDay: maxApps, sourceReadBudget: budget })}>
           ▶ Start
         </button>
+        <button
+          className="btn ghost"
+          disabled={busy || isActive || status.queued === 0}
+          title={
+            status.queued === 0
+              ? "Kolejka jest pusta — nie ma czego sprawdzać."
+              : "Sprawdza projekty już czekające w kolejce, bez szukania nowych w źródłach."
+          }
+          onClick={() => action("/run/start", { queueOnly: true, maxAppsPerDay: maxApps })}
+        >
+          ✓ Sprawdź kolejkę ({status.queued})
+        </button>
         <button className="btn ghost" disabled={busy || !isActive || paused} onClick={() => action("/run/pause")}>
           ⏸ Pauza
         </button>
@@ -112,7 +124,10 @@ export function ControlPanel({ status, onChange }: { status: StatusResponse; onC
 
       {displayRun && (
         <>
-          <h3>Liczniki {status.run ? "(bieżący przebieg)" : "(ostatni przebieg)"}</h3>
+          <h3>
+            Liczniki {status.run ? "(bieżący przebieg)" : "(ostatni przebieg)"}
+            {displayRun.params.queueOnly ? " — tylko kolejka" : ""}
+          </h3>
           <div className="counters">
             {COUNTER_DEFS.map((d) => (
               <div key={d.key} className={`counter ${d.attn && (counters[d.key] ?? 0) > 0 ? "attn" : ""}`}>

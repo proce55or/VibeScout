@@ -82,6 +82,7 @@ Kliknij **Start** w panelu — zobaczysz przykładowe projekty, klasyfikację i 
 
 1. **Panel → Przebieg:** wybierz źródła (domyślnie Hacker News), ustaw zakres dat i limity, kliknij **Start**.
 2. Program sam przejdzie łańcuch: pobranie ogłoszeń → klasyfikacja → kolejka → kontrole A–F → raport → powiadomienie. Możesz **Pauza/Wznów/Stop**.
+   - **✓ Sprawdź kolejkę (N)** — sprawdza tylko projekty, które już czekają w kolejce (np. po osiągnięciu dobowego limitu albo po zatrzymaniu przebiegu), **bez** ponownego przeszukiwania źródeł. Liczba w nawiasie to rozmiar kolejki. Przycisk jest szary, gdy kolejka jest pusta.
 3. **Lista projektów:** filtruj po źródle, pochodzeniu, pewności, statusie i wyniku kontroli. Kliknij projekt, by zobaczyć dowody, obserwacje i pobrać raport (HTML / Markdown / JSON).
 4. **Źródła i dane:** dodaj kanały RSS, wyklucz domeny, dodaj projekt ręcznie, zaimportuj listę z CSV/JSON (z podglądem przed dodaniem).
 5. **Powiadomienia:** trwałe, widoczne także po ponownym otwarciu panelu.
@@ -92,6 +93,8 @@ Kliknij **Start** w panelu — zobaczysz przykładowe projekty, klasyfikację i 
 - Albo uruchom `./stop.command` (zatrzyma wyłącznie proces VibeScout, po numerze PID z pliku `vibescout.pid`).
 
 ## 7. Aktualizacja
+
+Co zmieniło się w każdej wersji: [`CHANGELOG.md`](./CHANGELOG.md). Numer wersji widać w panelu obok logo.
 
 ```bash
 git pull            # jeśli pobierasz z GitHuba

@@ -118,6 +118,8 @@ export interface RunParams {
   lookbackDays: number;
   maxAppsPerDay: number;
   sourceReadBudget: number;
+  /** Tylko kontrole projektów już w kolejce — bez przeszukiwania źródeł. */
+  queueOnly?: boolean;
 }
 
 export interface RunState {

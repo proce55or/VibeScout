@@ -97,6 +97,12 @@ export class Pipeline {
     if (this.activeRunId) {
       return { ok: false, error: "Przebieg już trwa — nie uruchamiam drugiego." };
     }
+    if (params.queueOnly && this.db.queuedCount() === 0) {
+      return { ok: false, error: "Kolejka jest pusta — nie ma czego sprawdzać. Uruchom zwykły przebieg (Start), żeby znaleźć nowe projekty." };
+    }
+    if (params.queueOnly && this.db.checkedInLast24h() >= params.maxAppsPerDay) {
+      return { ok: false, error: `Dobowy limit kontroli (${params.maxAppsPerDay}) jest już wykorzystany. Spróbuj później albo podnieś limit „Maks. aplikacji / dobę".` };
+    }
     const existing = this.db.getActiveRun();
     if (existing) {
       // Z poprzedniej sesji pozostał aktywny wpis — oznacz jako crashed, nie dubluj.
@@ -155,7 +161,11 @@ export class Pipeline {
 
   private async execute(runId: string, params: RunParams): Promise<void> {
     const counters: RunCounters = this.db.getRun(runId)!.counters;
-    this.log("info", `▶ Start przebiegu. Źródła: ${params.sources.join(", ")}; zakres ${params.lookbackDays} dni; limit ${params.maxAppsPerDay}/dobę.`);
+    if (params.queueOnly) {
+      this.log("info", `▶ Sprawdzanie kolejki (bez szukania nowych projektów). Limit ${params.maxAppsPerDay}/dobę.`);
+    } else {
+      this.log("info", `▶ Start przebiegu. Źródła: ${params.sources.join(", ")}; zakres ${params.lookbackDays} dni; limit ${params.maxAppsPerDay}/dobę.`);
+    }
 
     // --- Faza 1: pobranie ogłoszeń i kwalifikacja ---
     const budget = { reads: 0, max: params.sourceReadBudget };
@@ -173,7 +183,8 @@ export class Pipeline {
     let minDate: string | null = null;
     let maxDate: string | null = null;
 
-    for (const sourceId of params.sources) {
+    const sourcesToRead = params.queueOnly ? [] : params.sources;
+    for (const sourceId of sourcesToRead) {
       if (this.stopRequested) break;
       await this.waitWhilePaused();
       const connector = getConnector(sourceId);
@@ -282,9 +293,12 @@ export class Pipeline {
       note: limitedNote,
     });
 
+    const doneLabel = params.queueOnly
+      ? this.stopRequested ? "Sprawdzanie kolejki zatrzymane" : "Sprawdzanie kolejki zakończone"
+      : this.stopRequested ? "Przebieg zatrzymany" : "Przebieg zakończony";
     this.log(
       this.stopRequested ? "warn" : "ok",
-      `■ ${this.stopRequested ? "Przebieg zatrzymany" : "Przebieg zakończony"}: znalezione ${counters.found}, sprawdzone ${counters.checked}, do przeglądu ${counters.needsReview}, odrzucone ${counters.rejected}, błędy ${counters.errors}.${limitedNote ? " " + limitedNote : ""}`,
+      `■ ${doneLabel}: znalezione ${counters.found}, sprawdzone ${counters.checked}, do przeglądu ${counters.needsReview}, odrzucone ${counters.rejected}, błędy ${counters.errors}.${limitedNote ? " " + limitedNote : ""}`,
     );
 
     // Retencja.
@@ -293,7 +307,7 @@ export class Pipeline {
     // Powiadomienie podsumowujące (trwałe).
     this.db.addNotification({
       level: counters.needsReview > 0 ? "attention" : "info",
-      title: this.stopRequested ? "Przebieg zatrzymany" : "Przebieg zakończony",
+      title: doneLabel,
       body: `Znaleziono ${counters.found}, zakwalifikowano do kontroli ${counters.queued}, sprawdzono ${counters.checked}, do przeglądu ${counters.needsReview}, odrzucono ${counters.rejected}, błędy ${counters.errors}.${limitedNote ? " " + limitedNote : ""}`,
       projectId: null,
       runId,
@@ -308,6 +322,12 @@ export class Pipeline {
   ): Promise<void> {
     if (!project.appUrl) {
       this.db.updateProjectStatus(project.id, "rejected", "brak adresu aplikacji");
+      counters.rejected += 1;
+      return;
+    }
+    // Adres repozytorium/profilu to nie działająca aplikacja — nie sprawdzamy samego serwisu.
+    if (isNonAppHost(project.host)) {
+      this.db.updateProjectStatus(project.id, "rejected", `adres to repozytorium/profil (${project.host}), nie aplikacja`);
       counters.rejected += 1;
       return;
     }
