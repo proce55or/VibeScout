@@ -17,6 +17,7 @@ function testConfig(): Config {
     // W testach zerujemy odstęp per host, by nie czekać realnych 5 s (logika bez zmian).
     limits: { ...HARD_LIMITS, minHostIntervalMs: 0 },
     llm: { enabled: false, endpoint: "", apiKey: "", budgetCents: 0 },
+    githubToken: "",
     userAgent: "test",
   };
 }

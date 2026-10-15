@@ -86,6 +86,8 @@ export interface Config {
     apiKey: string;
     budgetCents: number;
   };
+  /** Opcjonalny token GitHub — tylko dla wyższych limitów API. Konektor działa bez niego. */
+  githubToken: string;
   /** Nagłówek User-Agent używany przy pobieraniu stron. */
   userAgent: string;
 }
@@ -118,6 +120,7 @@ export function loadConfig(): Config {
       apiKey: envStr("VIBESCOUT_LLM_API_KEY", ""),
       budgetCents: envInt("VIBESCOUT_LLM_BUDGET_CENTS", 0),
     },
+    githubToken: envStr("VIBESCOUT_GITHUB_TOKEN", ""),
     userAgent:
       "VibeScout/1.0 (+local research tool; respects robots.txt; contact: local user)",
   };

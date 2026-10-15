@@ -12,6 +12,8 @@ export interface ConnectorContext {
   /** Budżet odczytów źródeł (łączna liczba elementów do pobrania). */
   budget: { reads: number; max: number };
   demo: boolean;
+  /** Opcjonalny token GitHub (wyższe limity API). Pusty = działa bez tokenu. */
+  githubToken?: string;
 }
 
 export interface CollectParams {

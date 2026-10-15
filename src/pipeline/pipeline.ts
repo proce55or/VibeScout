@@ -166,6 +166,7 @@ export class Pipeline {
       now: this.now,
       budget,
       demo: this.cfg.demo,
+      githubToken: this.cfg.githubToken,
     };
     const feeds = this.db.listFeeds().map((f) => ({ name: f.name, url: f.url, enabled: f.enabled, limit: f.limit }));
 

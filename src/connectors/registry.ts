@@ -1,5 +1,6 @@
 import { hackerNewsConnector } from "./hackernews.js";
 import { rssConnector } from "./rss.js";
+import { githubConnector } from "./github.js";
 import { emptyResult, type Connector } from "./types.js";
 
 /**
@@ -22,11 +23,7 @@ function stub(id: string, name: string, coverage: string): Connector {
 export const CONNECTORS: Connector[] = [
   hackerNewsConnector,
   rssConnector,
-  stub(
-    "github",
-    "GitHub",
-    "Planowany. Wymaga osobnego wdrożenia (np. wyszukiwanie publicznych repo/README z deklaracją + wyodrębnienie działającego adresu). Niewdrożony w v1.",
-  ),
+  githubConnector,
   stub(
     "reddit",
     "Reddit",

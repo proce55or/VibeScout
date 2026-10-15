@@ -16,7 +16,11 @@ const SOURCE_LIMITS: HardLimits = {
   minHostIntervalMs: 0, // odstępy pilnuje wspólny RateLimiter
 };
 
-export async function fetchSource(url: string, ctx: ConnectorContext): Promise<FetchResult> {
+export async function fetchSource(
+  url: string,
+  ctx: ConnectorContext,
+  extraHeaders?: Record<string, string>,
+): Promise<FetchResult> {
   let host: string;
   try {
     host = new URL(url).hostname;
@@ -50,6 +54,7 @@ export async function fetchSource(url: string, ctx: ConnectorContext): Promise<F
         headers: {
           "user-agent": "VibeScout/1.0 (+local research tool)",
           accept: "application/json, application/rss+xml, application/atom+xml, text/xml, */*;q=0.8",
+          ...extraHeaders,
         },
       },
       budget,
